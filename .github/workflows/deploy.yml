@@ -1,0 +1,86 @@
+name: Deploy Imagify to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO_NAME: imagify-repo
+  IMAGE_TAG: latest
+  TF_VAR_FILE: terraform.tfvars
+
+jobs:
+  deploy:
+    name: Deploy ECS Fargate
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      # 2. Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3. Login to ECR
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4. Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.ECR_REPO_NAME }}:${{ env.IMAGE_TAG }} .
+
+      # 5. Tag Docker image with ECR repo URI
+      - name: Tag Docker image
+        run: |
+          ECR_URI=$(aws ecr describe-repositories --repository-names ${{ env.ECR_REPO_NAME }} --query 'repositories[0].repositoryUri' --output text)
+          echo "ECR_URI=$ECR_URI" >> $GITHUB_ENV
+          docker tag ${{ env.ECR_REPO_NAME }}:${{ env.IMAGE_TAG }} $ECR_URI:${{ env.IMAGE_TAG }}
+
+      # 6. Push Docker image to ECR
+      - name: Push Docker image
+        run: |
+          docker push $ECR_URI:${{ env.IMAGE_TAG }}
+
+      # 7. Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.6
+
+      # 8. Terraform Init
+      - name: Terraform Init
+        run: terraform init
+
+      # 9. Terraform Plan
+      - name: Terraform Plan
+        run: terraform plan -var-file=${{ env.TF_VAR_FILE }}
+
+      # 10. Terraform Apply
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var-file=${{ env.TF_VAR_FILE }}
+
+      # 11. Output ECS service name (optional)
+      - name: Get ECS service info
+        run: |
+          ECS_SERVICE=$(terraform output -raw aws_ecs_service)
+          ECS_CLUSTER=$(terraform output -raw aws_ecs_cluster)
+          echo "ECS_SERVICE=$ECS_SERVICE" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=$ECS_CLUSTER" >> $GITHUB_ENV
+
+      # 12. Force ECS to update service (if needed)
+      - name: Force ECS service update
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment
