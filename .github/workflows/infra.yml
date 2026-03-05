@@ -1,0 +1,71 @@
+name: 1. Provision Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+  workflow_dispatch: # allows manual trigger
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  terraform:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false # IMPORTANT: needed so outputs return clean values
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var "mongodb_url=${{ secrets.MONGODB_URL }}" \
+            -var "clerk_publishable_key=${{ secrets.CLERK_PUBLISHABLE_KEY }}" \
+            -var "clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}" \
+            -var "cloudinary_api_key=${{ secrets.CLOUDINARY_API_KEY }}" \
+            -var "cloudinary_api_secret=${{ secrets.CLOUDINARY_API_SECRET }}" \
+            -var "stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var "stripe_publishable_key=${{ secrets.STRIPE_PUBLISHABLE_KEY }}"
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -var "mongodb_url=${{ secrets.MONGODB_URL }}" \
+            -var "clerk_publishable_key=${{ secrets.CLERK_PUBLISHABLE_KEY }}" \
+            -var "clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}" \
+            -var "cloudinary_api_key=${{ secrets.CLOUDINARY_API_KEY }}" \
+            -var "cloudinary_api_secret=${{ secrets.CLOUDINARY_API_SECRET }}" \
+            -var "stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var "stripe_publishable_key=${{ secrets.STRIPE_PUBLISHABLE_KEY }}"
+
+      # ssm.tf already wrote ecr_repository_url, ecs_cluster, ecs_service to SSM
+      # Just print them here for visibility in the Actions log
+      - name: Print infra outputs
+        working-directory: terraform
+        run: |
+          echo "Infrastructure provisioned"
+          echo "ECR: $(terraform output -raw ecr_repository_url)"
+          echo "ECS Cluster: $(terraform output -raw aws_ecs_cluster)"
+          echo "ECS Service: $(terraform output -raw aws_ecs_service)"

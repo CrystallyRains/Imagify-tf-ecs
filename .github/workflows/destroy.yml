@@ -1,0 +1,92 @@
+name: 3. Destroy Infrastructure (MANUAL ONLY)
+
+on:
+  workflow_dispatch: # ONLY runs when manually triggered — never on push
+    inputs:
+      confirm_destroy:
+        description: 'Type "destroy" to confirm you want to tear down all AWS infrastructure'
+        required: true
+        default: ""
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+
+    steps:
+      # Safety check: must type "destroy" to proceed
+      - name: Confirm destroy intent
+        run: |
+          if [ "${{ github.event.inputs.confirm_destroy }}" != "destroy" ]; then
+            echo "You must type 'destroy' in the confirmation input to proceed."
+            exit 1
+          fi
+          echo "Confirmed — proceeding with infrastructure teardown..."
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      # ECR repos with images can't be destroyed unless emptied first
+      - name: Empty ECR repository before destroy
+        run: |
+          REPO_NAME="imagify-repo"
+          echo "Deleting all images from ECR repo: $REPO_NAME"
+          IMAGE_IDS=$(aws ecr list-images \
+            --repository-name $REPO_NAME \
+            --query 'imageIds[*]' \
+            --output json)
+
+          if [ "$IMAGE_IDS" != "[]" ]; then
+            aws ecr batch-delete-image \
+              --repository-name $REPO_NAME \
+              --image-ids "$IMAGE_IDS"
+            echo "ECR images deleted"
+          else
+            echo "No images to delete"
+          fi
+
+      # S3 buckets with content can't be destroyed unless emptied first
+      - name: Empty S3 Terraform state bucket before destroy
+        run: |
+          BUCKET_NAME="imagify-terraform-state"
+          echo "🗑️  Emptying S3 bucket: $BUCKET_NAME"
+          aws s3 rm s3://$BUCKET_NAME --recursive || echo "Bucket may already be empty"
+
+      - name: Terraform Destroy
+        working-directory: terraform
+        run: |
+          terraform destroy -auto-approve \
+            -var "mongodb_url=${{ secrets.MONGODB_URL }}" \
+            -var "clerk_publishable_key=${{ secrets.CLERK_PUBLISHABLE_KEY }}" \
+            -var "clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}" \
+            -var "cloudinary_api_key=${{ secrets.CLOUDINARY_API_KEY }}" \
+            -var "cloudinary_api_secret=${{ secrets.CLOUDINARY_API_SECRET }}" \
+            -var "stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
+            -var "stripe_publishable_key=${{ secrets.STRIPE_PUBLISHABLE_KEY }}"
+
+      - name: Cleanup SSM infra params
+        run: |
+          for param in ecr_repository_url ecs_cluster ecs_service; do
+            aws ssm delete-parameter \
+              --name "/imagify/dev/$param" || echo "$param already gone"
+          done
+          echo "Infrastructure fully destroyed"

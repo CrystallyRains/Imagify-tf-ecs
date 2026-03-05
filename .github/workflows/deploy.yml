@@ -1,25 +1,27 @@
-name: Deploy Imagify to AWS
+name: 2. Build & Deploy App
 
 on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "terraform/**"   # skip if only terraform files changed
+      - ".github/**"     # skip if only workflow files changed
+  workflow_dispatch:     # allows manual trigger after infra is ready
 
 env:
   AWS_REGION: us-east-1
-  IMAGE_TAG: latest
+  IMAGE_TAG: ${{ github.sha }} # use commit SHA so every deploy is unique/traceable
 
 jobs:
   deploy:
-    name: Deploy ECS Fargate
+    name: Build & Deploy to ECS
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -27,50 +29,60 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3. Setup Terraform
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      # 4. Terraform Init
-      - name: Terraform Init
-        working-directory: terraform
-        run: terraform init
-
-      # 5. Terraform Apply (using GitHub Secrets instead of .tfvars)
-      - name: Terraform Apply
-        working-directory: terraform
+      # Read infra values from SSM (set by infra.yml after terraform apply)
+      - name: Load infra values from SSM
         run: |
-          terraform apply -auto-approve \
-            -var "mongodb_url=${{ secrets.MONGODB_URL }}" \
-            -var "clerk_publishable_key=${{ secrets.CLERK_PUBLISHABLE_KEY }}" \
-            -var "clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}" \
-            -var "cloudinary_api_key=${{ secrets.CLOUDINARY_API_KEY }}" \
-            -var "cloudinary_api_secret=${{ secrets.CLOUDINARY_API_SECRET }}" \
-            -var "stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-            -var "stripe_publishable_key=${{ secrets.STRIPE_PUBLISHABLE_KEY }}"
+          ECR_URI=$(aws ssm get-parameter \
+            --name "/imagify/dev/ecr_repository_url" \
+            --query "Parameter.Value" \
+            --output text)
 
-      # 6. Get ECR repo URI from Terraform output
-      - name: Get ECR repo URI
-        working-directory: terraform   # <-- ensures terraform runs in correct folder
-        run: |
-          ECR_URI=$(terraform output -raw ecr_repository_url)
-          echo "ECR_URI=${ECR_URI}" >> $GITHUB_ENV
-      
-      # 7. Login to ECR
+          ECS_CLUSTER=$(aws ssm get-parameter \
+            --name "/imagify/dev/ecs_cluster" \
+            --query "Parameter.Value" \
+            --output text)
+
+          ECS_SERVICE=$(aws ssm get-parameter \
+            --name "/imagify/dev/ecs_service" \
+            --query "Parameter.Value" \
+            --output text)
+
+          echo "ECR_URI=$ECR_URI" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=$ECS_CLUSTER" >> $GITHUB_ENV
+          echo "ECS_SERVICE=$ECS_SERVICE" >> $GITHUB_ENV
+
+          echo "ECR: $ECR_URI"
+          echo "ECS Cluster: $ECS_CLUSTER / Service: $ECS_SERVICE"
+
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
-      
-      # 8. Build Docker image
+
       - name: Build Docker image
         run: |
           docker build -t imagify:${{ env.IMAGE_TAG }} .
-      
-      # 9. Tag Docker image with ECR URI
+
       - name: Tag Docker image
         run: |
           docker tag imagify:${{ env.IMAGE_TAG }} ${{ env.ECR_URI }}:${{ env.IMAGE_TAG }}
-      
-      # 10. Push Docker image to ECR
-      - name: Push Docker image
+          docker tag imagify:${{ env.IMAGE_TAG }} ${{ env.ECR_URI }}:latest
+
+      - name: Push Docker image to ECR
         run: |
           docker push ${{ env.ECR_URI }}:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_URI }}:latest
+
+      - name: Update ECS service with new image
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment
+
+      # Wait for deployment to stabilize (optional but recommended)
+      - name: Wait for ECS deployment to complete
+        run: |
+          echo "Waiting for ECS service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }}
+          echo "Deployment complete!"

@@ -23,6 +23,45 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# -------------------------------------------------------
+# Allows ECS to read SSM SecureString secrets at task startup
+# (needed so container env vars can reference SSM params)
+# -------------------------------------------------------
+resource "aws_iam_policy" "ecs_ssm_policy" {
+  name = "imagify-ecs-ssm-read"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ]
+        Resource = "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
+
+        # Scoped to only imagify params — don't give access to everything
+        Resource = "arn:aws:ssm:us-east-1:*:parameter/imagify/*"
+      },
+      {
+        # SecureStrings are encrypted with KMS — execution role needs decrypt permission
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt"
+        ]
+        Resource = "*" # Scope to your KMS key ARN if you have a custom one
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_execution_ssm_attach" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = aws_iam_policy.ecs_ssm_policy.arn
+}
+
 
 resource "aws_iam_policy" "imagify_s3_policy" {
   name = "imagify-s3-access"
