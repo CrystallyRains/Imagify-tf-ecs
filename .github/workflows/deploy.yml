@@ -78,15 +78,6 @@ jobs:
             --service ${{ env.ECS_SERVICE }} \
             --force-new-deployment
 
-      # Wait for deployment to stabilize (optional but recommended)
-      - name: Wait for ECS deployment to complete
-        run: |
-          echo "Waiting for ECS service to stabilize..."
-          aws ecs wait services-stable \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_SERVICE }}
-          echo "Deployment complete!"
-
       # Get ALB DNS name so you know where to access the app
       - name: Get ALB endpoint
         run: |
