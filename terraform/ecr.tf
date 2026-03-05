@@ -2,6 +2,8 @@ module "ecr" {
   source = "terraform-aws-modules/ecr/aws"
 
   repository_name = "imagify-repo"
+  # Add this line to allow overwriting tags
+  repository_image_tag_mutability = "MUTABLE"
 
   repository_read_write_access_arns = [aws_iam_role.ecs_execution_role.arn]
   repository_lifecycle_policy = jsonencode({
