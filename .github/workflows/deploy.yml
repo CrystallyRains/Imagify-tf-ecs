@@ -7,16 +7,17 @@ on:
 
 env:
   AWS_REGION: us-east-1
+  ECR_REPO_NAME: imagify-repo
   IMAGE_TAG: latest
 
 jobs:
   deploy:
-    name: Deploy ECS Fargate
+    name: Build & Deploy ECS Fargate
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
-      - name: Checkout repository
+      # 1. Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
       # 2. Configure AWS credentials
@@ -27,54 +28,62 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3. Setup Terraform
+      # 3. Login to ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4. Build Docker image
+      - name: Build Docker image
+        run: docker build -t ${{ env.ECR_REPO_NAME }}:${{ env.IMAGE_TAG }} .
+
+      # 5. Tag Docker image with ECR URI
+      - name: Tag Docker image
+        run: |
+          ECR_URI=$(aws ecr describe-repositories --repository-names ${{ env.ECR_REPO_NAME }} --query 'repositories[0].repositoryUri' --output text)
+          echo "ECR_URI=$ECR_URI" >> $GITHUB_ENV
+          docker tag ${{ env.ECR_REPO_NAME }}:${{ env.IMAGE_TAG }} $ECR_URI:${{ env.IMAGE_TAG }}
+
+      # 6. Push Docker image to ECR
+      - name: Push Docker image
+        run: docker push $ECR_URI:${{ env.IMAGE_TAG }}
+
+      # 7. Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      # 4. Terraform Init
+      # 8. Export Terraform variables from GitHub Secrets
+      - name: Set Terraform variables
+        run: |
+          export TF_VAR_mongodb_url="${{ secrets.MONGODB_URL }}"
+          export TF_VAR_clerk_publishable_key="${{ secrets.CLERK_PUBLISHABLE_KEY }}"
+          export TF_VAR_clerk_secret_key="${{ secrets.CLERK_SECRET_KEY }}"
+          export TF_VAR_cloudinary_api_key="${{ secrets.CLOUDINARY_API_KEY }}"
+          export TF_VAR_cloudinary_api_secret="${{ secrets.CLOUDINARY_API_SECRET }}"
+          export TF_VAR_stripe_secret_key="${{ secrets.STRIPE_SECRET_KEY }}"
+          export TF_VAR_stripe_publishable_key="${{ secrets.STRIPE_PUBLISHABLE_KEY }}"
+
+      # 9. Terraform Init
       - name: Terraform Init
         run: terraform init
 
-      # 5. Terraform Apply (creates ECR, ECS, etc.)
+      # 10. Terraform Plan
+      - name: Terraform Plan
+        run: terraform plan
+
+      # 11. Terraform Apply
       - name: Terraform Apply
-        run: terraform apply -auto-approve \
-          -var "mongodb_url=${{ secrets.MONGODB_URL }}" \
-          -var "clerk_publishable_key=${{ secrets.CLERK_PUBLISHABLE_KEY }}" \
-          -var "clerk_secret_key=${{ secrets.CLERK_SECRET_KEY }}" \
-          -var "cloudinary_api_key=${{ secrets.CLOUDINARY_API_KEY }}" \
-          -var "cloudinary_api_secret=${{ secrets.CLOUDINARY_API_SECRET }}" \
-          -var "stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}" \
-          -var "stripe_publishable_key=${{ secrets.STRIPE_PUBLISHABLE_KEY }}"
+        run: terraform apply -auto-approve
 
-      # 6. Get Terraform outputs
-      - name: Get Terraform outputs
-        id: tf-outputs
+      # 12. Get ECS service info
+      - name: Get ECS service info
         run: |
-          echo "ECR_REPO_URI=$(terraform output -raw ecr_repository_url)" >> $GITHUB_ENV
-          echo "ECS_CLUSTER=$(terraform output -raw aws_ecs_cluster)" >> $GITHUB_ENV
-          echo "ECS_SERVICE=$(terraform output -raw aws_ecs_service)" >> $GITHUB_ENV
+          ECS_SERVICE=$(terraform output -raw aws_ecs_service)
+          ECS_CLUSTER=$(terraform output -raw aws_ecs_cluster)
+          echo "ECS_SERVICE=$ECS_SERVICE" >> $GITHUB_ENV
+          echo "ECS_CLUSTER=$ECS_CLUSTER" >> $GITHUB_ENV
 
-      # 7. Login to Amazon ECR
-      - name: Login to ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
-      # 8. Build Docker image
-      - name: Build Docker image
-        run: |
-          docker build -t imagify:${{ env.IMAGE_TAG }} .
-
-      # 9. Tag Docker image with ECR URI
-      - name: Tag Docker image
-        run: |
-          docker tag imagify:${{ env.IMAGE_TAG }} $ECR_REPO_URI:${{ env.IMAGE_TAG }}
-
-      # 10. Push Docker image to ECR
-      - name: Push Docker image
-        run: |
-          docker push $ECR_REPO_URI:${{ env.IMAGE_TAG }}
-
-      # 11. Force ECS service update
-      - name: Deploy to ECS
+      # 13. Force ECS service update (ensure new Docker image deploys)
+      - name: Force ECS service update
         run: |
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
