@@ -52,7 +52,7 @@ resource "aws_ecs_task_definition" "imagify" {
         { name = "NEXT_PUBLIC_CLERK_SIGN_IN_URL", value = "/sign-in" },
         { name = "NEXT_PUBLIC_CLERK_SIGN_UP_URL", value = "/sign-up" },
         { name = "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL", value = "/" },
-        { name = "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL", value = "/" }       
+        { name = "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL", value = "/" }
       ]
 
       logConfiguration = {

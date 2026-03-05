@@ -20,18 +20,18 @@ module "ecr" {
         }
       },
       {
-      rulePriority = 2
-      description  = "Delete untagged images older than 7 days"
-      selection = {
-        tagStatus   = "untagged"
-        countType   = "sinceImagePushed"
-        countUnit   = "days"
-        countNumber = 7
+        rulePriority = 2
+        description  = "Delete untagged images older than 7 days"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 7
+        }
+        action = {
+          type = "expire"
+        }
       }
-      action = {
-        type = "expire"
-      }
-    }
 
     ]
   })

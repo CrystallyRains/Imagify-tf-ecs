@@ -1,7 +1,7 @@
 # App Auto Scaling Target
 resource "aws_appautoscaling_target" "imagify" {
-  max_capacity       = 5       # maximum number of tasks
-  min_capacity       = 2       # minimum number of tasks
+  max_capacity       = 5 # maximum number of tasks
+  min_capacity       = 2 # minimum number of tasks
   resource_id        = "service/${aws_ecs_cluster.imagify.name}/${aws_ecs_service.imagify.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -19,7 +19,7 @@ resource "aws_appautoscaling_policy" "cpu_scale_up" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
-    target_value       = 70   # desired CPU %
+    target_value       = 70 # desired CPU %
     scale_in_cooldown  = 120
     scale_out_cooldown = 120
   }
@@ -37,7 +37,7 @@ resource "aws_appautoscaling_policy" "memory_scale_up" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageMemoryUtilization"
     }
-    target_value       = 75   # desired memory %
+    target_value       = 75 # desired memory %
     scale_in_cooldown  = 120
     scale_out_cooldown = 120
   }
