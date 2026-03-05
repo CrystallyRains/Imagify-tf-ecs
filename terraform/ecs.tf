@@ -27,7 +27,7 @@ resource "aws_ecs_task_definition" "imagify" {
   container_definitions = jsonencode([
     {
       name      = "imagify"
-      image     = "${aws_ecr_repository.imagify.repository_url}:latest"
+      image     = "${module.ecr.repository_url}:latest"
       essential = true
 
       portMappings = [
