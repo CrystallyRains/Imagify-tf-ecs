@@ -2,42 +2,70 @@ resource "aws_ssm_parameter" "mongodb_url" {
   name  = "/imagify/dev/mongodb_url"
   type  = "SecureString"
   value = var.mongodb_url
+
+  lifecycle {
+    ignore_changes = [value]  # won't fail if value already exists
+  }
 }
 
 resource "aws_ssm_parameter" "clerk_publishable_key" {
   name  = "/imagify/dev/clerk_publishable_key"
   type  = "SecureString"
   value = var.clerk_publishable_key
+
+  lifecycle {
+    ignore_changes = [value]  
+  }
 }
 
 resource "aws_ssm_parameter" "clerk_secret_key" {
   name  = "/imagify/dev/clerk_secret_key"
   type  = "SecureString"
   value = var.clerk_secret_key
+
+  lifecycle {
+    ignore_changes = [value]  
+  }
 }
 
 resource "aws_ssm_parameter" "cloudinary_api_key" {
   name  = "/imagify/dev/cloudinary_api_key"
   type  = "SecureString"
   value = var.cloudinary_api_key
+
+  lifecycle {
+    ignore_changes = [value]  
+  }
 }
 
 resource "aws_ssm_parameter" "cloudinary_api_secret" {
   name  = "/imagify/dev/cloudinary_api_secret"
   type  = "SecureString"
   value = var.cloudinary_api_secret
+
+  lifecycle {
+    ignore_changes = [value]  
+  }
 }
 
 resource "aws_ssm_parameter" "stripe_secret_key" {
   name  = "/imagify/dev/stripe_secret_key"
   type  = "SecureString"
   value = var.stripe_secret_key
+
+  lifecycle {
+    ignore_changes = [value]  
+  }
 }
 
 resource "aws_ssm_parameter" "stripe_publishable_key" {
   name  = "/imagify/dev/stripe_publishable_key"
   type  = "SecureString"
   value = var.stripe_publishable_key
+
+  lifecycle {
+    ignore_changes = [value]  
+  }
 }
 
 # -------------------------------------------------------
