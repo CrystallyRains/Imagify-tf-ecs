@@ -39,6 +39,11 @@ variable "stripe_publishable_key" {
   type        = string
 }
 
+variable next_public_cloudinary_cloud_name {
+  description = "Cloudinary cloud name for client-side configuration"
+  type    = string
+}
+
 variable "next_public_clerk_sign_in_url" {
   type    = string
   default = "/sign-in"

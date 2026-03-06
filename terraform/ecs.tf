@@ -41,8 +41,9 @@ resource "aws_ecs_task_definition" "imagify" {
         { name = "MONGODB_URL", valueFrom = aws_ssm_parameter.mongodb_url.arn },
         { name = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", valueFrom = aws_ssm_parameter.clerk_publishable_key.arn },
         { name = "CLERK_SECRET_KEY", valueFrom = aws_ssm_parameter.clerk_secret_key.arn },
-        { name = "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME", valueFrom = aws_ssm_parameter.cloudinary_api_key.arn },
+        { name = "CLOUDINARY_API_KEY", valueFrom = aws_ssm_parameter.cloudinary_api_key.arn },
         { name = "CLOUDINARY_API_SECRET", valueFrom = aws_ssm_parameter.cloudinary_api_secret.arn },
+        { name = "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME", valueFrom = aws_ssm_parameter.next_public_cloudinary_cloud_name.arn },
         { name = "STRIPE_SECRET_KEY", valueFrom = aws_ssm_parameter.stripe_secret_key.arn },
         { name = "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", valueFrom = aws_ssm_parameter.stripe_publishable_key.arn }
       ]

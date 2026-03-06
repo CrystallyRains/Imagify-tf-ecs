@@ -68,6 +68,12 @@ resource "aws_ssm_parameter" "stripe_publishable_key" {
   }
 }
 
+resource "aws_ssm_parameter" "next_public_cloudinary_cloud_name" {
+  name  = "/imagify/dev/next_public_cloudinary_cloud_name"
+  type  = "SecureString"
+  value = var.next_public_cloudinary_cloud_name
+}
+
 # -------------------------------------------------------
 # Infra output params — written by infra.yml after apply
 # Placeholders here so Terraform owns/tracks them.
