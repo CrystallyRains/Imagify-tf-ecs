@@ -1,10 +1,10 @@
-# Imagify - Production Deployment with Terraform, ECS & CI/CD
+# Imagify - Terraform, ECS & CI/CD Deployment
 
-This project demonstrates how to **take an AI SaaS application and deploy it to AWS using production-style infrastructure and CI/CD automation**.
+This project demonstrates how to **deploy an AI SaaS application to AWS using Infrastructure as Code and CI/CD automation**.
 
 The application is containerized using **multi-stage Docker builds** and deployed on **Amazon ECS**, with the entire infrastructure provisioned using **Terraform** and automated via **GitHub Actions**.
 
-The goal of this project is to replicate a **real-world cloud deployment pipeline**, covering infrastructure provisioning, container registry management, automated deployment, and secure secret handling.
+The goal of this project is to replicate a **real-world cloud deployment workflow**, covering infrastructure provisioning, container registry management, automated deployment, and secure secret handling.
 
 ---
 
