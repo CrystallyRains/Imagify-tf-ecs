@@ -1,94 +1,297 @@
-Imagify: AI SaaS Platform with Full DevOps Automation
-Imagify is a high-performance AI Image SaaS platform that allows users to perform generative AI transformations like image restoration, background removal, and generative filling.
+# Imagify — AI SaaS Platform with Production Cloud Infrastructure
 
-This project demonstrates a production-grade Cloud Engineering workflow, moving a full-stack Next.js application into a fully automated, scalable AWS environment using Terraform, Docker, and GitHub Actions.
+Imagify is an AI-powered image transformation SaaS platform that allows users to perform advanced generative AI operations such as image restoration, generative fill, background removal, and recoloring.
 
-🤖 Features
-AI Image Restoration: Revive old or damaged images.
+In this project, I took an existing full-stack AI SaaS application and redesigned its deployment for the cloud by implementing a **production-style DevOps and Cloud Engineering workflow**.
 
-Generative Fill: Seamlessly modify or add elements within an image.
+The application was containerized using **Docker multi-stage builds**, reducing the container size significantly, and deployed to a **fully automated AWS infrastructure using Terraform and GitHub Actions**.
 
-Object/Background Removal: Clean up photos with professional AI precision.
+This project demonstrates real-world cloud engineering practices including **Infrastructure as Code, CI/CD automation, container orchestration, and scalable AWS architecture**.
 
-Image Recoloring: Change object colors using natural language prompts.
+---
 
-Credits System: Secure payment integration via Stripe.
+# Architecture Overview
 
-Authentication: User management and route protection via Clerk.
+User
+   |
+Application Load Balancer
+   |
+ECS Fargate Service
+   |
+Docker Container (Next.js App)
+   |
+External Services
+• MongoDB
+• Cloudinary
+• Stripe
+• Clerk
 
-🏗️ The Cloud Infrastructure
-As a Cloud Engineer, I automated the entire infrastructure to ensure zero manual configuration in the AWS Console.
+Infrastructure is provisioned entirely on **AWS** and managed through **Terraform**.
 
-1. Infrastructure as Code (Terraform)
-Located in the /terraform directory, the code provisions:
+---
 
-Custom VPC: Isolated network with Public and Private subnets across multiple Availability Zones.
+# Key Cloud Engineering Work
 
-AWS ECS Fargate: Serverless container orchestration for the Next.js app (no EC2 management required).
+## Containerization (Docker)
 
-Application Load Balancer (ALB): Handles traffic distribution and health checks.
+The original application was containerized using **Docker multi-stage builds**.
 
-S3 & DynamoDB Backend: Managed state locking for Terraform to prevent concurrent update conflicts.
+Benefits achieved:
 
-2. CI/CD Automation (GitHub Actions)
-The project uses three specialized pipelines:
+- Reduced final container size by ~10x
+- Removed unnecessary build dependencies
+- Faster CI/CD builds
+- Faster container startup in ECS
 
-Infrastructure Workflow: Automates terraform apply when infra code is updated.
+Example build stages:
 
-Build Workflow: Uses a multi-stage Docker build to optimize image size and pushes it to Amazon ECR.
+Stage 1 — Install dependencies  
+Stage 2 — Build Next.js application  
+Stage 3 — Production runtime container
 
-Deploy Workflow: Performs a Rolling Update on the ECS service for zero-downtime releases.
+---
 
-🚀 Step-by-Step Setup Guide
-Follow these steps to deploy this project to your own AWS account.
+# Infrastructure as Code (Terraform)
 
-1. Prerequisites
-AWS CLI and Terraform installed.
+All infrastructure is defined and deployed using **Terraform**.
 
-Docker installed locally.
+Provisioned resources include:
 
-Accounts for: Clerk, MongoDB, Cloudinary, and Stripe.
+- VPC
+- Public and Private Subnets
+- Internet Gateway
+- Route Tables
+- Security Groups
+- Application Load Balancer (ALB)
+- ECS Cluster
+- ECS Fargate Service
+- Amazon ECR Repository
+- IAM Roles and Policies
 
-2. Bootstrap the Backend
-Before deploying the main app, you need a place for Terraform to store its state.
+This ensures **reproducible and version-controlled infrastructure**.
 
-Navigate to /infra-bootstrap.
+---
 
-Run terraform init and terraform apply.
+# Terraform Remote State Management
 
-This creates your S3 bucket and DynamoDB table.
+Terraform state is stored remotely to ensure safe infrastructure management.
 
-3. Provision the AWS Stack
-Navigate to /terraform.
+Backend configuration:
 
-Update your variables in terraform.tfvars.
+S3 Bucket — stores Terraform state file  
+DynamoDB Table — provides state locking
 
-Run terraform init and terraform apply.
+Benefits:
 
-Copy the ALB DNS Name from the output—this is your app's live URL.
+- Prevents concurrent Terraform updates
+- Enables safe infrastructure collaboration
+- Protects state integrity
 
-4. Configure GitHub Secrets
-Add the following to your GitHub Repository Secrets so the pipelines can run:
+Backend resources are created using a **bootstrap Terraform module** located in:
 
-AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY
 
-MONGODB_URL, STRIPE_SECRET_KEY, CLOUDINARY_API_KEY, etc.
+infra-bootstrap/
 
-Note: Any variable starting with NEXT_PUBLIC_ must be passed as a Build Argument in your GitHub Action to be available in the browser.
 
-5. Deploy the App
-Simply push your changes to the main branch.
+---
 
-The Build workflow will package the app.
+# CI/CD Automation (GitHub Actions)
 
-The Deploy workflow will update the ECS containers automatically.
+The project uses **three automated GitHub Actions workflows** to manage the infrastructure and application lifecycle.
 
-🛠️ Tech Stack
-App: Next.js, TypeScript, Tailwind CSS, MongoDB
+## 1. Infrastructure Workflow
 
-Cloud: AWS (VPC, ECS, ECR, ALB, S3, DynamoDB)
+Triggered when Terraform files change.
 
-Automation: Terraform, Docker, GitHub Actions
+Steps:
 
-Services: Clerk, Stripe, Cloudinary AI
 
+terraform init
+terraform plan
+terraform apply
+
+
+Automatically provisions or updates the AWS infrastructure.
+
+---
+
+## 2. Build & Deploy Workflow
+
+Triggered on push to the `main` branch.
+
+Steps:
+
+
+Build Docker image
+Push image to Amazon ECR
+Update ECS service
+Trigger rolling deployment
+
+
+This ensures **zero-downtime application deployments**.
+
+---
+
+## 3. Infrastructure Destroy Workflow
+
+Allows automated teardown of infrastructure.
+
+
+terraform destroy
+
+
+Useful for avoiding unnecessary AWS costs during development.
+
+---
+
+# Tech Stack
+
+### Application
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+- MongoDB
+
+### Cloud Infrastructure
+
+- Amazon ECS (Fargate)
+- Amazon ECR
+- Application Load Balancer
+- VPC
+- IAM
+
+### DevOps & Automation
+
+- Terraform
+- Docker
+- GitHub Actions
+
+### External Services
+
+- Cloudinary
+- Stripe
+- Clerk Authentication
+
+---
+
+# Project Structure
+
+
+imagify-tf-ecs
+│
+├── app/ # Next.js application source
+├── terraform/ # Terraform infrastructure code
+├── infra-bootstrap/ # Terraform backend setup (S3 + DynamoDB)
+├── .github/workflows/ # CI/CD pipelines
+├── Dockerfile # Multi-stage container build
+└── README.md
+
+
+---
+
+# Deployment Guide
+
+## 1. Bootstrap Terraform Backend
+
+Create the Terraform remote state infrastructure.
+
+
+cd infra-bootstrap
+
+terraform init
+terraform apply
+
+
+This creates:
+
+- S3 bucket for Terraform state
+- DynamoDB table for state locking
+
+---
+
+## 2. Provision AWS Infrastructure
+
+
+cd terraform
+
+terraform init
+terraform apply
+
+
+This provisions:
+
+- VPC
+- ECS Cluster
+- Application Load Balancer
+- ECR repository
+- IAM roles
+
+---
+
+## 3. Configure GitHub Secrets
+
+Add the following repository secrets:
+
+
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+
+MONGODB_URL
+STRIPE_SECRET_KEY
+CLOUDINARY_API_KEY
+CLERK_SECRET_KEY
+
+
+Public environment variables must be passed as **Docker build arguments**.
+
+---
+
+## 4. Deploy the Application
+
+Push code to the main branch:
+
+
+git push origin main
+
+
+GitHub Actions will automatically:
+
+1. Build the Docker image  
+2. Push the image to ECR  
+3. Deploy the container to ECS  
+
+---
+
+# What This Project Demonstrates
+
+This project showcases several practical cloud engineering skills:
+
+- Containerizing applications using Docker
+- Designing scalable AWS infrastructure
+- Managing infrastructure with Terraform
+- Implementing CI/CD pipelines
+- Deploying containerized applications to ECS
+- Managing Terraform remote state
+- Automating cloud deployments
+
+---
+
+# Future Improvements
+
+Potential enhancements include:
+
+- ECS Auto Scaling policies
+- CloudWatch monitoring and alerts
+- Blue/Green deployments
+- CloudFront CDN for global performance
+- Secrets management via AWS Secrets Manager
+
+---
+
+# Author
+
+Snigdha Chaudhari
+
+AWS Community Builder  
+Cloud & DevOps Enthusiast
