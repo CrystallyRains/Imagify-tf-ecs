@@ -219,7 +219,7 @@ terraform init
 terraform apply
 
 
-This provisions:
+These provisions:
 
 - VPC
 - ECS Cluster
@@ -260,32 +260,6 @@ GitHub Actions will automatically:
 1. Build the Docker image  
 2. Push the image to ECR  
 3. Deploy the container to ECS  
-
----
-
-# What This Project Demonstrates
-
-This project showcases several practical cloud engineering skills:
-
-- Containerizing applications using Docker
-- Designing scalable AWS infrastructure
-- Managing infrastructure with Terraform
-- Implementing CI/CD pipelines
-- Deploying containerized applications to ECS
-- Managing Terraform remote state
-- Automating cloud deployments
-
----
-
-# Future Improvements
-
-Potential enhancements include:
-
-- ECS Auto Scaling policies
-- CloudWatch monitoring and alerts
-- Blue/Green deployments
-- CloudFront CDN for global performance
-- Secrets management via AWS Secrets Manager
 
 ---
 
