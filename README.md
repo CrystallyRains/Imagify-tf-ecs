@@ -134,3 +134,15 @@ Benefits:
 This reduced the image size by **~10x compared to a naive Docker build**.
 
 ---
+
+## Key Learnings
+
+Through this project, I gained hands-on experience with:
+
+- Designing AWS infrastructure using Terraform
+- Implementing CI/CD pipelines with GitHub Actions
+- Deploying containerized applications on Amazon ECS (Fargate)
+- Managing infrastructure outputs using AWS SSM Parameter Store
+- Securely handling secrets using GitHub Actions Secrets
+- Optimizing container images using multi-stage Docker builds
+- Structuring infrastructure and deployment workflows separately
